@@ -24,6 +24,7 @@ from loguru import logger
 
 from pixelle_video.services.comfy_base_service import ComfyBaseService
 from pixelle_video.models.media import MediaResult
+from pixelle_video.services.gemini_image_service import GeminiImageService
 
 
 class MediaService(ComfyBaseService):
@@ -64,6 +65,9 @@ class MediaService(ComfyBaseService):
             core: PixelleVideoCore instance (for accessing shared ComfyKit)
         """
         super().__init__(config, service_name="image", core=core)  # Keep "image" for config compatibility
+        
+        # Initialize Gemini image service
+        self.gemini = GeminiImageService(config)
     
     def _scan_workflows(self):
         """
@@ -135,7 +139,7 @@ class MediaService(ComfyBaseService):
         
         Args:
             prompt: Media generation prompt
-            workflow: Workflow filename (default: from config or "image_flux.json")
+            workflow: Workflow filename, or "gemini" to use Gemini Imagen 3
             media_type: Type of media to generate - "image" or "video" (default: "image")
             comfyui_url: ComfyUI URL (optional, overrides config)
             runninghub_api_key: RunningHub API key (optional, overrides config)
@@ -153,6 +157,9 @@ class MediaService(ComfyBaseService):
             MediaResult object with media_type ("image" or "video") and url
         
         Examples:
+            # Use Gemini for image generation
+            media = await pixelle_video.media(prompt="a cat", workflow="gemini")
+            
             # Simplest: use default workflow (workflows/image_flux.json)
             media = await pixelle_video.media(prompt="a beautiful cat")
             if media.is_image:
@@ -194,6 +201,21 @@ class MediaService(ComfyBaseService):
                 comfyui_url="http://192.168.1.100:8188"
             )
         """
+        # 0. Check if using Gemini
+        if workflow == "gemini" or workflow == "gemini_image":
+            if not self.gemini.available:
+                raise ValueError("Gemini API key not configured. Add 'gemini.api_key' to config.yaml")
+            
+            logger.info("🎨 Using Gemini for image generation")
+            return await self.gemini.generate(
+                prompt=prompt,
+                width=width,
+                height=height,
+                negative_prompt=negative_prompt,
+                seed=seed,
+                **params
+            )
+        
         # 1. Resolve workflow (returns structured info)
         workflow_info = self._resolve_workflow(workflow=workflow)
         

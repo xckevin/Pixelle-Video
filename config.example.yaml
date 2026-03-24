@@ -6,16 +6,28 @@ project_name: Pixelle-Video
 
 # ==================== LLM Configuration ====================
 # Supports any OpenAI SDK compatible API
+# For LiteLLM proxy, configure like this:
 llm:
-  api_key: ""
-  base_url: ""
-  model: ""
+  api_key: ""  # LiteLLM API key
+  base_url: ""  # LiteLLM proxy URL (must end with /v1)
+  model: ""  # Model name registered in LiteLLM
 
 # Popular presets:
 # Qwen Max:        base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  model: "qwen-max"
 # OpenAI GPT-4o:   base_url: "https://api.openai.com/v1"                          model: "gpt-4o"
 # DeepSeek:        base_url: "https://api.deepseek.com"                           model: "deepseek-chat"
 # Ollama (Local):  base_url: "http://localhost:11434/v1"                          model: "llama3.2"
+# LiteLLM Proxy:   base_url: "http://your-litellm-proxy/v1"                      model: "gpt-4o-mini"
+
+# ==================== Gemini Configuration ====================
+# Google Gemini API for image generation (via LiteLLM proxy)
+gemini:
+  # LiteLLM proxy configuration
+  litellm_host: ""  # e.g., "https://your-litellm-proxy.com"
+  api_key: ""       # Your LiteLLM API key
+  
+  # Image model to use
+  image_model: "gemini-3.1-flash-image-preview"
 
 # ==================== ComfyUI Configuration ====================
 comfyui:
