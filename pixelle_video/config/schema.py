@@ -26,6 +26,13 @@ class LLMConfig(BaseModel):
     model: str = Field(default="", description="LLM Model Name")
 
 
+class GeminiConfig(BaseModel):
+    """Gemini configuration for image generation"""
+    litellm_host: str = Field(default="", description="LiteLLM proxy host URL")
+    api_key: str = Field(default="", description="LiteLLM API key")
+    image_model: str = Field(default="gemini-3.1-flash-image-preview", description="Gemini image model name")
+
+
 class TTSLocalConfig(BaseModel):
     """Local TTS configuration (Edge TTS)"""
     voice: str = Field(default="zh-CN-YunjianNeural", description="Edge TTS voice ID")
@@ -92,6 +99,7 @@ class PixelleVideoConfig(BaseModel):
     """Pixelle-Video main configuration"""
     project_name: str = Field(default="Pixelle-Video", description="Project name")
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    gemini: GeminiConfig = Field(default_factory=GeminiConfig)
     comfyui: ComfyUIConfig = Field(default_factory=ComfyUIConfig)
     template: TemplateConfig = Field(default_factory=TemplateConfig)
     

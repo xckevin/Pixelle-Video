@@ -52,9 +52,16 @@ class GeminiImageService:
         """Get LiteLLM host and API key from config"""
         gemini_config = self._config.get("gemini", {})
         
+        # Debug: log all config keys
+        logger.debug(f"Gemini config keys: {list(gemini_config.keys())}")
+        logger.debug(f"Full gemini config: {gemini_config}")
+        
         # Support both direct config and LiteLLM proxy config
         litellm_host = gemini_config.get("litellm_host") or gemini_config.get("base_url")
         api_key = gemini_config.get("api_key") or gemini_config.get("litellm_api_key")
+        
+        # Debug log
+        logger.debug(f"Gemini resolved: litellm_host={litellm_host}, api_key={'*' * 8 if api_key else None}")
         
         return litellm_host, api_key
     
@@ -69,7 +76,7 @@ class GeminiImageService:
         **kwargs
     ) -> MediaResult:
         """
-        Generate image using Gemini (via LiteLLM proxy)
+        Generate image using Gemini (via LiteLLM proxy - OpenAI compatible)
         
         Args:
             prompt: Image generation prompt
@@ -77,7 +84,7 @@ class GeminiImageService:
             height: Image height
             negative_prompt: Negative prompt (not used)
             seed: Random seed (not used)
-            model: Model name (default: gemini-3.1-flash-image-preview)
+            model: Model name (default: from config)
             **kwargs: Additional parameters
         
         Returns:
@@ -94,40 +101,30 @@ class GeminiImageService:
         # Remove trailing slash from host
         litellm_host = litellm_host.rstrip("/")
         
-        # Default model for image generation
-        model_name = model or "gemini-3.1-flash-image-preview"
+        # Get model from config or parameter
+        gemini_config = self._config.get("gemini", {})
+        model_name = model or gemini_config.get("image_model", "gemini-3-pro-image-preview")
         
-        # Build request URL and payload
-        url = f"{litellm_host}/v1beta/models/{model_name}:generateContent"
-        
-        # Determine aspect ratio
-        aspect_ratio = self._get_aspect_ratio(width, height)
+        # Use OpenAI-compatible endpoint
+        url = f"{litellm_host}/v1/chat/completions"
         
         payload = {
-            "contents": [
+            "model": model_name,
+            "messages": [
                 {
-                    "parts": [
-                        {"text": prompt}
-                    ]
+                    "role": "user",
+                    "content": prompt
                 }
-            ],
-            "generationConfig": {
-                "responseModalities": ["IMAGE"],
-                "imageConfig": {}
-            }
+            ]
         }
-        
-        # Add aspect ratio if specified
-        if aspect_ratio and aspect_ratio != "Auto":
-            payload["generationConfig"]["imageConfig"]["aspectRatio"] = aspect_ratio
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": api_key
+            "Authorization": f"Bearer {api_key}"
         }
         
         logger.info(f"🎨 Generating image with Gemini (via LiteLLM): {prompt[:50]}...")
-        logger.debug(f"Request URL: {url}")
+        logger.debug(f"Request URL: {url}, Model: {model_name}")
         
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, json=payload, headers=headers)
@@ -139,22 +136,96 @@ class GeminiImageService:
             
             result = response.json()
         
-        # Extract image from response
+        # Extract image from OpenAI-format response
         try:
-            candidates = result.get("candidates", [])
-            if not candidates:
-                raise Exception(f"No candidates in response: {result}")
+            choices = result.get("choices", [])
+            if not choices:
+                raise Exception(f"No choices in response: {result}")
             
-            parts = candidates[0].get("content", {}).get("parts", [])
+            message = choices[0].get("message", {})
+            content = message.get("content")
+            parts = message.get("parts", [])
+            images = message.get("images", [])  # LiteLLM returns images here
             
+            # Debug: log response structure
+            logger.debug(f"Content type: {type(content)}, parts: {len(parts) if parts else 0}, images: {len(images) if images else 0}")
+            
+            # Handle different response formats
             image_base64 = None
-            for part in parts:
-                if "inlineData" in part:
-                    image_base64 = part["inlineData"].get("data")
-                    break
+            
+            # Format 1: images array (LiteLLM specific format)
+            if images and isinstance(images, list) and len(images) > 0:
+                img = images[0]
+                logger.debug(f"First image type: {type(img)}, keys: {img.keys() if isinstance(img, dict) else 'N/A'}")
+                if isinstance(img, dict):
+                    # Format: {"image_url": {"url": "data:image/png;base64,..."}, "type": "image_url"}
+                    if "image_url" in img:
+                        img_url = img["image_url"]
+                        if isinstance(img_url, dict) and "url" in img_url:
+                            url = img_url["url"]
+                            if isinstance(url, str) and url.startswith("data:"):
+                                image_base64 = url.split(",", 1)[1]
+                                logger.info(f"✅ Extracted base64 from image_url.url, length: {len(image_base64)}")
+                        elif isinstance(img_url, str):
+                            # Direct URL string
+                            if img_url.startswith("data:"):
+                                image_base64 = img_url.split(",", 1)[1]
+                                logger.info(f"✅ Extracted base64 from image_url string, length: {len(image_base64)}")
+                    elif "data" in img:
+                        image_base64 = img["data"]
+                        logger.debug("Found base64 in image dict 'data' field")
+                elif isinstance(img, str):
+                    if img.startswith("data:"):
+                        image_base64 = img.split(",", 1)[1]
+                        logger.debug("Extracted base64 from data URL")
+                    else:
+                        image_base64 = img
+                        logger.debug(f"Using image string as base64 (length: {len(img)})")
+            
+            # If we found it, skip other checks
+            if image_base64:
+                logger.info(f"✅ Image extracted successfully, length: {len(image_base64)}")
+            
+            # Format 2: content is directly a base64 string
+            if not image_base64 and isinstance(content, str) and len(content) > 1000:
+                image_base64 = content
+                logger.debug("Found base64 image directly in content string")
+            
+            # Format 3: parts array
+            elif parts and isinstance(parts, list):
+                for part in parts:
+                    if isinstance(part, dict) and "data" in part:
+                        image_base64 = part["data"]
+                        logger.debug("Found base64 image in parts array")
+                        break
+            
+            # Format 4: content is a dict
+            elif isinstance(content, dict):
+                if "image_url" in content:
+                    image_url = content["image_url"]
+                    if isinstance(image_url, str) and image_url.startswith("data:"):
+                        image_base64 = image_url.split(",", 1)[1]
+                elif "url" in content:
+                    image_url = content["url"]
+                    if isinstance(image_url, str) and image_url.startswith("data:"):
+                        image_base64 = image_url.split(",", 1)[1]
+            
+            # Format 5: content is a list of parts
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, dict):
+                        if "image" in part:
+                            image_base64 = part["image"]
+                            break
+                        elif "data" in part:
+                            image_base64 = part["data"]
+                            break
             
             if not image_base64:
-                raise Exception(f"No image in response: {result}")
+                # Log the response structure for debugging
+                logger.error(f"Could not extract image from response.")
+                logger.error(f"Message keys: {message.keys()}")
+                raise Exception(f"No image found in response")
             
         except Exception as e:
             logger.error(f"Failed to parse response: {e}")

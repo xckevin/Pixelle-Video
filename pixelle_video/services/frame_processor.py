@@ -421,8 +421,20 @@ class FrameProcessor:
     ) -> str:
         """Download media (image or video) from URL to local file"""
         from pixelle_video.utils.os_util import get_task_frame_path
+        import shutil
+        
         output_path = get_task_frame_path(task_id, frame_index, media_type)
         
+        # Check if it's a local file path (not an HTTP URL)
+        if url.startswith('/') or url.startswith('file://'):
+            # Local file - copy directly
+            source_path = url.replace('file://', '')
+            if source_path != output_path:
+                shutil.copy2(source_path, output_path)
+            logger.debug(f"  ✓ Copied local file: {source_path} -> {output_path}")
+            return output_path
+        
+        # HTTP URL - download
         timeout = httpx.Timeout(connect=10.0, read=60, write=60, pool=60)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.get(url)

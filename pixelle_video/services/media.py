@@ -66,19 +66,31 @@ class MediaService(ComfyBaseService):
         """
         super().__init__(config, service_name="image", core=core)  # Keep "image" for config compatibility
         
-        # Initialize Gemini image service
+        # Initialize Gemini image service with full config (not just comfyui.image)
         self.gemini = GeminiImageService(config)
+        self._full_config = config  # Keep reference to full config
     
     def _scan_workflows(self):
         """
         Scan workflows for both image_ and video_ prefixes
         
-        Override parent method to support multiple prefixes
+        Override parent method to support multiple prefixes and add gemini option
         """
         from pixelle_video.utils.os_util import list_resource_dirs, list_resource_files, get_resource_path
         from pathlib import Path
         
         workflows = []
+        
+        # Add Gemini workflow option (always available)
+        if self.gemini.available:
+            workflows.append({
+                "name": "gemini",
+                "display_name": "gemini - Gemini Imagen 3 (Cloud)",
+                "source": "gemini",
+                "path": "gemini",
+                "key": "gemini"
+            })
+            logger.debug("Found workflow: gemini")
         
         # Get all workflow source directories
         source_dirs = list_resource_dirs("workflows")
@@ -108,8 +120,8 @@ class MediaService(ComfyBaseService):
                 except Exception as e:
                     logger.error(f"Failed to parse workflow {source_name}/{filename}: {e}")
         
-        # Sort by key (source/name)
-        return sorted(workflows, key=lambda w: w["key"])
+        # Sort by key (source/name), but put gemini first if available
+        return sorted(workflows, key=lambda w: (0 if w["key"] == "gemini" else 1, w["key"]))
     
     async def __call__(
         self,
