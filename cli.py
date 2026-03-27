@@ -130,6 +130,110 @@ async def generate_video(
         await core.cleanup()
 
 
+async def batch_generate(
+    topics_file: str,
+    output_dir: str = "batch_output",
+    n_scenes: int = 5,
+    workflow: str = "gemini",
+    template: str = "1080x1920/image_default.html",
+    style: str = "douyin-knowledge",
+    image_style: str = None,
+    voice: str = None,
+    tts_speed: float = None,
+    signature: str = None,
+    delay: float = 2.0,
+):
+    """
+    Batch generate videos from a topics file
+
+    Each non-empty, non-comment line in the file is treated as a topic.
+    Lines starting with '#' are skipped.
+
+    Args:
+        topics_file: Path to file with one topic per line
+        output_dir: Directory to save generated videos
+        n_scenes: Number of scenes per video
+        workflow: Image generation workflow
+        template: Video template
+        style: Platform narration style
+        image_style: Image visual style
+        voice: TTS voice ID
+        tts_speed: TTS speech speed
+        signature: Watermark text
+        delay: Seconds to wait between videos (default: 2.0)
+    """
+    import time
+
+    topics_path = Path(topics_file)
+    if not topics_path.exists():
+        print(f"❌ Topics file not found: {topics_file}")
+        return
+
+    # Read topics
+    topics = []
+    with open(topics_path, encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                topics.append(stripped)
+
+    if not topics:
+        print("❌ No topics found in file.")
+        return
+
+    # Create output directory
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"\n📋 Batch Generate: {len(topics)} topics → {output_dir}")
+    print(f"=" * 60)
+
+    success = 0
+    failed = []
+
+    for idx, topic in enumerate(topics, 1):
+        safe_name = topic[:30].replace("/", "_").replace("\\", "_").replace(" ", "_")
+        filename = f"{idx:02d}_{safe_name}.mp4"
+        output_path = str(out_dir / filename)
+
+        print(f"\n[{idx}/{len(topics)}] 🎬 {topic}")
+        print(f"  → {output_path}")
+
+        try:
+            result = await generate_video(
+                text=topic,
+                output=output_path,
+                n_scenes=n_scenes,
+                workflow=workflow,
+                template=template,
+                style=style,
+                image_style=image_style,
+                voice=voice,
+                tts_speed=tts_speed,
+                signature=signature,
+            )
+            if result:
+                success += 1
+                print(f"  ✅ Done: {output_path}")
+            else:
+                failed.append((idx, topic))
+                print(f"  ❌ Failed (no result)")
+        except Exception as e:
+            failed.append((idx, topic))
+            print(f"  ❌ Error: {e}")
+
+        if idx < len(topics):
+            print(f"  ⏳ Waiting {delay}s before next video...")
+            await asyncio.sleep(delay)
+
+    print(f"\n{'=' * 60}")
+    print(f"✅ Batch complete: {success}/{len(topics)} succeeded")
+    if failed:
+        print(f"❌ Failed topics:")
+        for i, t in failed:
+            print(f"   [{i:02d}] {t}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Pixelle-Video CLI - Generate videos from command line"
@@ -224,6 +328,29 @@ def main():
         default="all",
         help="Service to test"
     )
+
+    # Batch command
+    batch_parser = subparsers.add_parser("batch", help="Batch generate videos from a topics file")
+    batch_parser.add_argument("topics_file", help="Path to topics file (one topic per line, # for comments)")
+    batch_parser.add_argument("-o", "--output-dir", default="batch_output", dest="output_dir",
+                              help="Output directory (default: batch_output)")
+    batch_parser.add_argument("-n", "--n-scenes", type=int, default=5, dest="n_scenes",
+                              help="Number of scenes per video (default: 5)")
+    batch_parser.add_argument("-w", "--workflow", default="gemini",
+                              help="Image workflow (default: gemini)")
+    batch_parser.add_argument("-t", "--template", default="1080x1920/image_default.html",
+                              help="Video template")
+    batch_parser.add_argument("--style", choices=list(STYLE_DESCRIPTIONS.keys()),
+                              default="douyin-knowledge", help="Platform narration style")
+    batch_parser.add_argument("--image-style", choices=list(IMAGE_STYLE_PRESETS.keys()),
+                              dest="image_style", default=None, help="Image visual style preset")
+    batch_parser.add_argument("--voice", default=None,
+                              help="TTS voice ID (e.g. zh-CN-XiaoxiaoNeural)")
+    batch_parser.add_argument("--tts-speed", type=float, dest="tts_speed", default=None,
+                              help="TTS speech speed multiplier")
+    batch_parser.add_argument("--signature", default=None, help="Watermark/signature text")
+    batch_parser.add_argument("--delay", type=float, default=2.0,
+                              help="Seconds to wait between videos (default: 2.0)")
     
     args = parser.parse_args()
     
@@ -246,6 +373,20 @@ def main():
         ))
     elif args.command == "test":
         asyncio.run(test_services(args.service))
+    elif args.command == "batch":
+        asyncio.run(batch_generate(
+            topics_file=args.topics_file,
+            output_dir=args.output_dir,
+            n_scenes=args.n_scenes,
+            workflow=args.workflow,
+            template=args.template,
+            style=args.style,
+            image_style=args.image_style,
+            voice=args.voice,
+            tts_speed=args.tts_speed,
+            signature=args.signature,
+            delay=args.delay,
+        ))
     else:
         parser.print_help()
 
