@@ -318,6 +318,7 @@ class VideoService:
             
             # Build ffmpeg command
             cmd = ['ffmpeg']
+            for video in videos:
                 cmd.extend(['-i', video])
             cmd.extend([
                 '-filter_complex', filter_complex,
