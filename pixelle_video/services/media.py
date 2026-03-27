@@ -24,6 +24,8 @@ from loguru import logger
 
 from pixelle_video.services.comfy_base_service import ComfyBaseService
 from pixelle_video.models.media import MediaResult
+from pixelle_video.services.gemini_image_service import GeminiImageService
+from pixelle_video.services.litellm_video_service import LiteLLMVideoService
 
 
 class MediaService(ComfyBaseService):
@@ -64,17 +66,47 @@ class MediaService(ComfyBaseService):
             core: PixelleVideoCore instance (for accessing shared ComfyKit)
         """
         super().__init__(config, service_name="image", core=core)  # Keep "image" for config compatibility
+        
+        # Initialize Gemini image service with full config (not just comfyui.image)
+        self.gemini = GeminiImageService(config)
+        
+        # Initialize LiteLLM video service
+        self.litellm_video = LiteLLMVideoService(config)
+        
+        self._full_config = config  # Keep reference to full config
     
     def _scan_workflows(self):
         """
         Scan workflows for both image_ and video_ prefixes
         
-        Override parent method to support multiple prefixes
+        Override parent method to support multiple prefixes and add gemini/litellm options
         """
         from pixelle_video.utils.os_util import list_resource_dirs, list_resource_files, get_resource_path
         from pathlib import Path
         
         workflows = []
+        
+        # Add Gemini workflow option (always available)
+        if self.gemini.available:
+            workflows.append({
+                "name": "gemini",
+                "display_name": "gemini - Gemini Imagen 3 (Cloud)",
+                "source": "gemini",
+                "path": "gemini",
+                "key": "gemini"
+            })
+            logger.debug("Found workflow: gemini")
+        
+        # Add LiteLLM video workflow option
+        if self.litellm_video.available:
+            workflows.append({
+                "name": "litellm_video",
+                "display_name": "litellm_video - LiteLLM Video (Runway/Pika)",
+                "source": "litellm",
+                "path": "litellm_video",
+                "key": "litellm_video"
+            })
+            logger.debug("Found workflow: litellm_video")
         
         # Get all workflow source directories
         source_dirs = list_resource_dirs("workflows")
@@ -104,8 +136,8 @@ class MediaService(ComfyBaseService):
                 except Exception as e:
                     logger.error(f"Failed to parse workflow {source_name}/{filename}: {e}")
         
-        # Sort by key (source/name)
-        return sorted(workflows, key=lambda w: w["key"])
+        # Sort by key (source/name), but put gemini and litellm_video first
+        return sorted(workflows, key=lambda w: (0 if w["key"] in ["gemini", "litellm_video"] else 1, w["key"]))
     
     async def __call__(
         self,
@@ -135,7 +167,7 @@ class MediaService(ComfyBaseService):
         
         Args:
             prompt: Media generation prompt
-            workflow: Workflow filename (default: from config or "image_flux.json")
+            workflow: Workflow filename, or "gemini" to use Gemini Imagen 3
             media_type: Type of media to generate - "image" or "video" (default: "image")
             comfyui_url: ComfyUI URL (optional, overrides config)
             runninghub_api_key: RunningHub API key (optional, overrides config)
@@ -153,6 +185,9 @@ class MediaService(ComfyBaseService):
             MediaResult object with media_type ("image" or "video") and url
         
         Examples:
+            # Use Gemini for image generation
+            media = await pixelle_video.media(prompt="a cat", workflow="gemini")
+            
             # Simplest: use default workflow (workflows/image_flux.json)
             media = await pixelle_video.media(prompt="a beautiful cat")
             if media.is_image:
@@ -194,6 +229,35 @@ class MediaService(ComfyBaseService):
                 comfyui_url="http://192.168.1.100:8188"
             )
         """
+        # 0. Check if using Gemini
+        if workflow == "gemini" or workflow == "gemini_image":
+            if not self.gemini.available:
+                raise ValueError("Gemini API key not configured. Add 'gemini.api_key' to config.yaml")
+            
+            logger.info("🎨 Using Gemini for image generation")
+            return await self.gemini.generate(
+                prompt=prompt,
+                width=width,
+                height=height,
+                negative_prompt=negative_prompt,
+                seed=seed,
+                **params
+            )
+        
+        # 0.5. Check if using LiteLLM Video
+        if workflow == "litellm_video":
+            if not self.litellm_video.available:
+                raise ValueError("LiteLLM Video not configured. Add 'video.litellm_host' and 'video.api_key' to config.yaml")
+            
+            logger.info("🎬 Using LiteLLM for video generation")
+            return await self.litellm_video.generate(
+                prompt=prompt,
+                duration=duration or 8.0,
+                width=width,
+                height=height,
+                **params
+            )
+        
         # 1. Resolve workflow (returns structured info)
         workflow_info = self._resolve_workflow(workflow=workflow)
         
