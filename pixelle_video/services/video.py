@@ -26,6 +26,7 @@ Note: Requires FFmpeg to be installed on the system.
 
 import os
 import shutil
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -33,6 +34,20 @@ from typing import List, Literal, Optional
 
 import ffmpeg
 from loguru import logger
+
+
+def _get_video_codec():
+    """Try VideoToolbox hardware acceleration on Mac, fallback to libx264"""
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-hide_banner', '-encoders'],
+            capture_output=True, text=True
+        )
+        if 'h264_videotoolbox' in result.stdout:
+            return 'h264_videotoolbox'
+    except Exception:
+        pass
+    return 'libx264'
 
 from pixelle_video.utils.os_util import (
     get_resource_path,
@@ -234,7 +249,6 @@ class VideoService:
             
             # Build ffmpeg command
             cmd = ['ffmpeg']
-            for video in videos:
                 cmd.extend(['-i', video])
             cmd.extend([
                 '-filter_complex', filter_complex,
@@ -245,7 +259,6 @@ class VideoService:
             ])
             
             # Run command
-            import subprocess
             result = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -653,6 +666,32 @@ class VideoService:
             input_image = ffmpeg.input(image, loop=1, framerate=fps)
             input_audio = ffmpeg.input(audio)
             
+            # Detect hardware codec
+            codec = _get_video_codec()
+            logger.debug(f"Using video codec: {codec}")
+            
+            # Build output params based on codec
+            if codec == 'h264_videotoolbox':
+                output_params = dict(
+                    t=audio_duration,
+                    vcodec='h264_videotoolbox',
+                    acodec='aac',
+                    pix_fmt='yuv420p',
+                    audio_bitrate='320k',
+                    **{'b:v': '5M'}
+                )
+            else:
+                output_params = dict(
+                    t=audio_duration,
+                    vcodec='libx264',
+                    acodec='aac',
+                    pix_fmt='yuv420p',
+                    audio_bitrate='320k',
+                    preset='slow',
+                    crf=18,
+                    **{'b:v': '5M'}
+                )
+            
             # Combine image and audio
             # Use -t to explicitly set video duration = audio duration
             (
@@ -661,14 +700,7 @@ class VideoService:
                     input_image,
                     input_audio,
                     output,
-                    t=audio_duration,  # Force video duration to match audio exactly
-                    vcodec='libx264',
-                    acodec='aac',
-                    pix_fmt='yuv420p',
-                    audio_bitrate='192k',
-                    preset='medium',
-                    crf=23,
-                    **{'b:v': '2M'}  # Video bitrate
+                    **output_params
                 )
                 .overwrite_output()
                 .run(capture_stdout=True, capture_stderr=True)
