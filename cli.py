@@ -145,6 +145,8 @@ async def batch_generate(
     voice: str = None,
     tts_speed: float = None,
     signature: str = None,
+    transition: str = None,
+    transition_duration: float = 0.3,
     delay: float = 2.0,
 ):
     """
@@ -215,6 +217,8 @@ async def batch_generate(
                 voice=voice,
                 tts_speed=tts_speed,
                 signature=signature,
+                transition=transition,
+                transition_duration=transition_duration,
             )
             if result:
                 success += 1
@@ -366,6 +370,11 @@ def main():
     batch_parser.add_argument("--tts-speed", type=float, dest="tts_speed", default=None,
                               help="TTS speech speed multiplier")
     batch_parser.add_argument("--signature", default=None, help="Watermark/signature text")
+    batch_parser.add_argument("--transition", default=None,
+                              choices=['fade', 'wipeleft', 'wiperight', 'slideleft', 'dissolve'],
+                              help="Frame transition effect (default: None)")
+    batch_parser.add_argument("--transition-duration", type=float, default=0.3, dest="transition_duration",
+                              help="Transition duration in seconds (default: 0.3)")
     batch_parser.add_argument("--delay", type=float, default=2.0,
                               help="Seconds to wait between videos (default: 2.0)")
     
@@ -404,6 +413,8 @@ def main():
             voice=args.voice,
             tts_speed=args.tts_speed,
             signature=args.signature,
+            transition=args.transition,
+            transition_duration=args.transition_duration,
             delay=args.delay,
         ))
     else:
