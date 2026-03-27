@@ -29,6 +29,8 @@ async def generate_video(
     prompt_prefix: str = "",
     bgm: str = None,
     signature: str = None,
+    voice: str = None,
+    tts_speed: float = None,
 ):
     """
     Generate video from topic or script
@@ -44,6 +46,8 @@ async def generate_video(
         prompt_prefix: Image prompt prefix
         bgm: Background music path
         signature: Watermark/signature text shown in template (pass "" to remove)
+        voice: TTS voice ID (e.g. zh-CN-XiaoxiaoNeural, YunxiNeural, YunjianNeural)
+        tts_speed: TTS speech speed multiplier (e.g. 1.0, 1.2)
     """
     print(f"\n🎬 Pixelle-Video CLI")
     print(f"=" * 50)
@@ -94,6 +98,8 @@ async def generate_video(
             output_path=output,
             progress_callback=progress_callback,
             template_params=template_params,
+            voice_id=voice,
+            tts_speed=tts_speed,
         )
 
         print(f"\n✅ Video generated: {result.video_path}")
@@ -171,6 +177,19 @@ def main():
         help='Watermark/signature text shown in bottom-right of template. '
              'Pass empty string to remove: --signature ""'
     )
+    gen_parser.add_argument(
+        "--voice",
+        default=None,
+        help='TTS voice ID. Options: zh-CN-XiaoxiaoNeural (女暖), '
+             'zh-CN-YunxiNeural (男磁), zh-CN-YunjianNeural (男力)'
+    )
+    gen_parser.add_argument(
+        "--tts-speed",
+        type=float,
+        dest="tts_speed",
+        default=None,
+        help="TTS speech speed multiplier (e.g. 1.0 normal, 1.2 faster)"
+    )
     
     # Test command
     test_parser = subparsers.add_parser("test", help="Test services")
@@ -195,6 +214,8 @@ def main():
             prompt_prefix=args.prompt_prefix,
             bgm=args.bgm,
             signature=args.signature,
+            voice=args.voice,
+            tts_speed=args.tts_speed,
         ))
     elif args.command == "test":
         asyncio.run(test_services(args.service))
