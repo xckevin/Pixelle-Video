@@ -25,26 +25,49 @@ from typing import List, Optional
 
 IMAGE_STYLE_PRESETS = {
     "stick_figure": {
-        "name": "Stick Figure Sketch",
-        "description": "stick figure style sketch, black and white lines, pure white background, minimalist hand-drawn feel",
-        "use_case": "General scenes, simple and intuitive"
+        "name": "火柴人简笔画",
+        "prompt_prefix": "stick figure style sketch, black and white lines, pure white background, minimalist hand-drawn feel",
+        "use_case": "通用场景，简洁直观"
     },
-    
-    "minimal": {
-        "name": "Minimalist Abstract",
-        "description": "minimalist abstract art, geometric shapes, clean composition, modern design, soft pastel colors",
-        "use_case": "Modern, artistic feel"
+    "realistic": {
+        "name": "写实摄影风",
+        "prompt_prefix": "photorealistic, high resolution photography, natural lighting, professional DSLR quality, ultra detailed",
+        "use_case": "写实内容，真实感强"
     },
-    
-    "concept": {
-        "name": "Conceptual Visual",
-        "description": "conceptual visual metaphors, symbolic elements, thought-provoking imagery, artistic interpretation",
-        "use_case": "Deep content, philosophical thinking"
+    "anime": {
+        "name": "动漫插画风",
+        "prompt_prefix": "anime illustration style, Japanese animation aesthetic, vibrant colors, clean lines, manga-inspired",
+        "use_case": "动漫风格，年轻受众"
+    },
+    "chinese_ink": {
+        "name": "中国水墨风",
+        "prompt_prefix": "Chinese ink painting style, traditional brush strokes, monochromatic with subtle color washes, Zen aesthetic",
+        "use_case": "国风内容，文化气息"
+    },
+    "flat_design": {
+        "name": "扁平插画风",
+        "prompt_prefix": "flat design illustration, bold geometric shapes, clean minimal style, pastel color palette, modern infographic aesthetic",
+        "use_case": "知识类内容，信息传达清晰"
+    },
+    "watercolor": {
+        "name": "水彩插画风",
+        "prompt_prefix": "watercolor illustration, soft brushwork, dreamy pastel tones, gentle textures, healing and warm atmosphere",
+        "use_case": "治愈类内容，温柔氛围"
+    },
+    "dark_tech": {
+        "name": "暗黑科技风",
+        "prompt_prefix": "dark technology aesthetic, neon glow effects, cyberpunk style, deep blacks with vivid accent colors, futuristic digital art",
+        "use_case": "科技类内容，未来感强"
+    },
+    "3d_cartoon": {
+        "name": "3D卡通风",
+        "prompt_prefix": "3D cartoon rendering, Pixar animation style, soft subsurface scattering, friendly character design, colorful and playful",
+        "use_case": "卡通风格，适合亲子或轻松内容"
     },
 }
 
 # Default preset
-DEFAULT_IMAGE_STYLE = "stick_figure"
+DEFAULT_IMAGE_STYLE = "flat_design"
 
 
 IMAGE_PROMPT_GENERATION_PROMPT = """# Role Definition
@@ -151,3 +174,12 @@ def build_image_prompt_prompt(
         max_words=max_words
     )
 
+
+
+def get_style_prompt_prefix(style: str) -> str:
+    preset = IMAGE_STYLE_PRESETS.get(style)
+    return preset.get("prompt_prefix", "") if preset else ""
+
+
+def list_style_presets() -> dict:
+    return {k: {"name": v["name"], "use_case": v["use_case"]} for k, v in IMAGE_STYLE_PRESETS.items()}

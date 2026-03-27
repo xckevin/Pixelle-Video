@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from pixelle_video.service import PixelleVideoCore
 from pixelle_video.prompts.topic_narration import STYLE_DESCRIPTIONS
+from pixelle_video.prompts.image_generation import IMAGE_STYLE_PRESETS, get_style_prompt_prefix
 
 
 async def generate_video(
@@ -33,6 +34,7 @@ async def generate_video(
     voice: str = None,
     tts_speed: float = None,
     style: str = "douyin-knowledge",
+    image_style: str = None,
 ):
     """
     Generate video from topic or script
@@ -51,6 +53,7 @@ async def generate_video(
         voice: TTS voice ID (e.g. zh-CN-XiaoxiaoNeural, YunxiNeural, YunjianNeural)
         tts_speed: TTS speech speed multiplier (e.g. 1.0, 1.2)
         style: Platform style key (e.g. 'douyin-knowledge', 'wechat-knowledge')
+        image_style: Image visual style key (e.g. 'flat_design', 'anime')
     """
     print(f"\n🎬 Pixelle-Video CLI")
     print(f"=" * 50)
@@ -87,6 +90,11 @@ async def generate_video(
     if signature is not None:
         template_params = {"signature": signature}
 
+    # Resolve prompt_prefix: image_style overrides explicit prompt_prefix
+    effective_prompt_prefix = prompt_prefix
+    if image_style:
+        effective_prompt_prefix = get_style_prompt_prefix(image_style)
+
     try:
         # Generate video
         result = await core.generate_video(
@@ -97,7 +105,7 @@ async def generate_video(
             title=title,
             frame_template=template,
             media_workflow=workflow,
-            prompt_prefix=prompt_prefix if prompt_prefix else None,
+            prompt_prefix=effective_prompt_prefix if effective_prompt_prefix else None,
             output_path=output,
             progress_callback=progress_callback,
             template_params=template_params,
@@ -200,6 +208,13 @@ def main():
         default="douyin-knowledge",
         help="Platform narration style (default: douyin-knowledge)"
     )
+    gen_parser.add_argument(
+        "--image-style",
+        choices=list(IMAGE_STYLE_PRESETS.keys()),
+        dest="image_style",
+        default=None,
+        help="Image visual style preset (e.g. flat_design, anime, realistic)"
+    )
     
     # Test command
     test_parser = subparsers.add_parser("test", help="Test services")
@@ -227,6 +242,7 @@ def main():
             voice=args.voice,
             tts_speed=args.tts_speed,
             style=args.style,
+            image_style=args.image_style,
         ))
     elif args.command == "test":
         asyncio.run(test_services(args.service))
