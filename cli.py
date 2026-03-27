@@ -35,6 +35,8 @@ async def generate_video(
     tts_speed: float = None,
     style: str = "douyin-knowledge",
     image_style: str = None,
+    transition: str = None,
+    transition_duration: float = 0.3,
 ):
     """
     Generate video from topic or script
@@ -112,6 +114,8 @@ async def generate_video(
             voice_id=voice,
             tts_speed=tts_speed,
             content_style=style,
+            transition=transition,
+            transition_duration=transition_duration,
         )
 
         print(f"\n✅ Video generated: {result.video_path}")
@@ -319,6 +323,19 @@ def main():
         default=None,
         help="Image visual style preset (e.g. flat_design, anime, realistic)"
     )
+    gen_parser.add_argument(
+        "--transition",
+        choices=["fade", "wipeleft", "wiperight", "slideleft", "dissolve"],
+        default=None,
+        help="Frame transition effect between scenes"
+    )
+    gen_parser.add_argument(
+        "--transition-duration",
+        type=float,
+        dest="transition_duration",
+        default=0.3,
+        help="Transition duration in seconds (default: 0.3)"
+    )
     
     # Test command
     test_parser = subparsers.add_parser("test", help="Test services")
@@ -370,6 +387,8 @@ def main():
             tts_speed=args.tts_speed,
             style=args.style,
             image_style=args.image_style,
+            transition=args.transition,
+            transition_duration=args.transition_duration,
         ))
     elif args.command == "test":
         asyncio.run(test_services(args.service))

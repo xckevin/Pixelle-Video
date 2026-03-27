@@ -415,13 +415,37 @@ class StandardPipeline(LinearVideoPipeline):
         
         video_service = VideoService()
         
-        final_video_path = video_service.concat_videos(
-            videos=segment_paths,
-            output=ctx.final_video_path,
-            bgm_path=ctx.params.get("bgm_path"),
-            bgm_volume=ctx.params.get("bgm_volume", 0.2),
-            bgm_mode=ctx.params.get("bgm_mode", "loop")
-        )
+        transition = ctx.params.get("transition")
+        if transition:
+            transition_duration = ctx.params.get("transition_duration", 0.3)
+            logger.info(f"🎞️ Using '{transition}' transition (duration={transition_duration}s)")
+            concat_output = ctx.final_video_path if not ctx.params.get("bgm_path") else ctx.final_video_path.replace('.mp4', '_no_bgm.mp4')
+            video_service.concat_videos_with_transition(
+                videos=segment_paths,
+                output=concat_output,
+                transition=transition,
+                transition_duration=transition_duration,
+            )
+            if ctx.params.get("bgm_path"):
+                import os as _os
+                final_video_path = video_service._add_bgm_to_video(
+                    video=concat_output,
+                    bgm_path=ctx.params.get("bgm_path"),
+                    output=ctx.final_video_path,
+                    volume=ctx.params.get("bgm_volume", 0.2),
+                    mode=ctx.params.get("bgm_mode", "loop"),
+                )
+                if _os.path.exists(concat_output):
+                    _os.unlink(concat_output)
+            final_video_path = ctx.final_video_path
+        else:
+            final_video_path = video_service.concat_videos(
+                videos=segment_paths,
+                output=ctx.final_video_path,
+                bgm_path=ctx.params.get("bgm_path"),
+                bgm_volume=ctx.params.get("bgm_volume", 0.2),
+                bgm_mode=ctx.params.get("bgm_mode", "loop")
+            )
         
         storyboard.final_video_path = final_video_path
         storyboard.completed_at = datetime.now()

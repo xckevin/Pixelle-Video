@@ -192,6 +192,75 @@ class VideoService:
             else:
                 return self._concat_filter(videos, output)
     
+    def concat_videos_with_transition(
+        self,
+        videos: List[str],
+        output: str,
+        transition: str = "fade",
+        transition_duration: float = 0.3,
+    ) -> str:
+        """
+        Concatenate videos with xfade transition effects.
+
+        Supported transitions: fade, wipeleft, wiperight, slideleft, dissolve.
+        Falls back to simple concat on any error.
+
+        Args:
+            videos: List of video file paths
+            output: Output video file path
+            transition: xfade transition type
+            transition_duration: Duration of each transition in seconds
+
+        Returns:
+            Path to output video
+        """
+        if len(videos) <= 1:
+            return self.concat_videos(videos, output)
+
+        try:
+            # Get durations
+            durations = [self._get_video_duration(v) for v in videos]
+
+            # Build complex filter with xfade
+            # Each xfade offset is cumulative sum of durations minus transition overlaps
+            filter_parts = []
+            offset = 0.0
+            prev_label = "[0:v]"
+
+            for i in range(1, len(videos)):
+                offset += durations[i - 1] - transition_duration
+                next_label = f"[v{i}]" if i < len(videos) - 1 else "[vout]"
+                filter_parts.append(
+                    f"{prev_label}[{i}:v]xfade=transition={transition}:"
+                    f"duration={transition_duration}:offset={offset:.3f}{next_label}"
+                )
+                prev_label = f"[v{i}]"
+
+            filter_complex = ";".join(filter_parts)
+
+            cmd = ["ffmpeg", "-y"]
+            for v in videos:
+                cmd += ["-i", v]
+            cmd += [
+                "-filter_complex", filter_complex,
+                "-map", "[vout]",
+                "-map", "0:a",
+                "-shortest",
+                output,
+            ]
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                logger.warning(f"xfade failed, falling back to simple concat: {result.stderr[-300:]}")
+                return self.concat_videos(videos, output)
+
+            logger.success(f"Videos concatenated with '{transition}' transition: {output}")
+            return output
+
+        except Exception as e:
+            logger.warning(f"Transition concat failed ({e}), falling back to simple concat")
+            return self.concat_videos(videos, output)
+
     def _concat_demuxer(self, videos: List[str], output: str) -> str:
         """
         Concatenate using concat demuxer (fast, no re-encoding)
