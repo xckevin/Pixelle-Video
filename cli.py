@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from pixelle_video.service import PixelleVideoCore
+from pixelle_video.prompts.topic_narration import STYLE_DESCRIPTIONS
 
 
 async def generate_video(
@@ -31,6 +32,7 @@ async def generate_video(
     signature: str = None,
     voice: str = None,
     tts_speed: float = None,
+    style: str = "douyin-knowledge",
 ):
     """
     Generate video from topic or script
@@ -48,6 +50,7 @@ async def generate_video(
         signature: Watermark/signature text shown in template (pass "" to remove)
         voice: TTS voice ID (e.g. zh-CN-XiaoxiaoNeural, YunxiNeural, YunjianNeural)
         tts_speed: TTS speech speed multiplier (e.g. 1.0, 1.2)
+        style: Platform style key (e.g. 'douyin-knowledge', 'wechat-knowledge')
     """
     print(f"\n🎬 Pixelle-Video CLI")
     print(f"=" * 50)
@@ -100,6 +103,7 @@ async def generate_video(
             template_params=template_params,
             voice_id=voice,
             tts_speed=tts_speed,
+            content_style=style,
         )
 
         print(f"\n✅ Video generated: {result.video_path}")
@@ -190,6 +194,12 @@ def main():
         default=None,
         help="TTS speech speed multiplier (e.g. 1.0 normal, 1.2 faster)"
     )
+    gen_parser.add_argument(
+        "--style",
+        choices=list(STYLE_DESCRIPTIONS.keys()),
+        default="douyin-knowledge",
+        help="Platform narration style (default: douyin-knowledge)"
+    )
     
     # Test command
     test_parser = subparsers.add_parser("test", help="Test services")
@@ -216,6 +226,7 @@ def main():
             signature=args.signature,
             voice=args.voice,
             tts_speed=args.tts_speed,
+            style=args.style,
         ))
     elif args.command == "test":
         asyncio.run(test_services(args.service))

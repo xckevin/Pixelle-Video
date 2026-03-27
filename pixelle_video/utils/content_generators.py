@@ -97,7 +97,8 @@ async def generate_narrations_from_topic(
     topic: str,
     n_scenes: int = 5,
     min_words: int = 5,
-    max_words: int = 20
+    max_words: int = 20,
+    style: str = None
 ) -> List[str]:
     """
     Generate narrations from topic using LLM
@@ -108,6 +109,7 @@ async def generate_narrations_from_topic(
         n_scenes: Number of narrations to generate
         min_words: Minimum narration length
         max_words: Maximum narration length
+        style: Platform style key (e.g. 'douyin-knowledge')
     
     Returns:
         List of narration texts
@@ -120,7 +122,8 @@ async def generate_narrations_from_topic(
         topic=topic,
         n_storyboard=n_scenes,
         min_words=min_words,
-        max_words=max_words
+        max_words=max_words,
+        style=style
     )
     
     response = await llm_service(

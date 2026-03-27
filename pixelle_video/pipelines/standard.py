@@ -118,7 +118,8 @@ class StandardPipeline(LinearVideoPipeline):
                 topic=text,
                 n_scenes=n_scenes,
                 min_words=min_words,
-                max_words=max_words
+                max_words=max_words,
+                style=ctx.params.get("content_style")
             )
             logger.info(f"✅ Generated {len(ctx.narrations)} narrations")
         else:  # fixed

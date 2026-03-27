@@ -135,7 +135,9 @@ def build_topic_narration_prompt(
     topic: str,
     n_storyboard: int,
     min_words: int,
-    max_words: int
+    max_words: int,
+    style: str = None,
+    use_chinese_prompt: bool = True
 ) -> str:
     """
     Build topic narration prompt
@@ -145,10 +147,21 @@ def build_topic_narration_prompt(
         n_storyboard: Number of storyboard frames
         min_words: Minimum word count
         max_words: Maximum word count
+        style: Platform style key from STYLE_DESCRIPTIONS (optional)
+        use_chinese_prompt: If True, use Chinese prompt template (default: True)
     
     Returns:
         Formatted prompt
     """
+    if use_chinese_prompt:
+        style_description = STYLE_DESCRIPTIONS.get(style or DEFAULT_STYLE, STYLE_DESCRIPTIONS[DEFAULT_STYLE])
+        return TOPIC_NARRATION_PROMPT_ZH.format(
+            topic=topic,
+            n_storyboard=n_storyboard,
+            min_words=min_words,
+            max_words=max_words,
+            style_description=style_description
+        )
     return TOPIC_NARRATION_PROMPT.format(
         topic=topic,
         n_storyboard=n_storyboard,
@@ -156,3 +169,63 @@ def build_topic_narration_prompt(
         max_words=max_words
     )
 
+
+
+# ==================== PLATFORM STYLE PRESETS ====================
+
+STYLE_DESCRIPTIONS = {
+    "douyin-knowledge": "抖音知识类——干货密度高，有记忆点，语气自信有力",
+    "douyin-story": "抖音故事类——有情节有转折，引发情感共鸣，叙述风格",
+    "douyin-emotion": "抖音情感类——温柔治愈，语气亲切温暖",
+    "douyin-motivation": "抖音励志类——激励向上，语气有力有行动感",
+    "wechat-knowledge": "视频号知识类——深度适中，语气成熟稳重",
+    "xiaohongshu": "小红书种草类——真实体验感，适合好物推荐或生活方式",
+    "general": "通用风格——自然口语化，适合多平台",
+}
+
+DEFAULT_STYLE = "douyin-knowledge"
+
+
+TOPIC_NARRATION_PROMPT_ZH = """你是一位经验丰富的短视频内容创作者，擅长把主题转化为有共鸣、有价值的中文口播脚本。
+
+## 创作任务
+针对以下主题，创作 {n_storyboard} 段口播文案，每段用于视频的一个分镜画面。
+
+## 主题
+{topic}
+
+## 平台风格
+{style_description}
+
+## 创作要求
+
+### 文案规格
+- 字数：每段严格控制在 {min_words}~{max_words} 字之间
+- 语言：纯中文，口语化，像朋友聊天
+- 节奏：适合 TTS 朗读，断句自然
+- 结尾：用句号结尾，不用感叹号
+
+### 内容结构
+- 第1段：用场景/现象/问题引发共鸣，抓住注意力
+- 中间段：展开核心观点，每段一个独立观点，用生活例子解释
+- 最后段：给出行动建议或启发，让观众有收获感
+
+### 禁止事项
+- 禁止用"大家好"、"今天我们来聊"等固定开场白
+- 禁止每段开头都用相同的词
+- 禁止说教感，要像朋友分享
+- 禁止堆砌形容词，要有具体细节
+- 禁止 emoji、网址、数字编号
+
+## 输出格式
+只输出 JSON，不要有其他文字：
+
+```json
+{{
+  "narrations": [
+    "第一段文案",
+    "第二段文案"
+  ]
+}}
+```
+"""
