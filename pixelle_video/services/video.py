@@ -539,7 +539,9 @@ class VideoService:
                         video_stream,
                         audio_stream,
                         output,
-                        vcodec='libx264',  # Re-encode video if padded
+                        vcodec="libx264",  # Re-encode video if padded
+                        crf=18,
+                        video_bitrate="4000k",
                         acodec='aac',
                         audio_bitrate='192k'
                     )
@@ -566,7 +568,9 @@ class VideoService:
                         video_stream,
                         audio_stream,
                         output,
-                        vcodec='libx264',  # Re-encode video if padded
+                        vcodec="libx264",  # Re-encode video if padded
+                        crf=18,
+                        video_bitrate="4000k",
                         acodec='aac',
                         audio_bitrate='192k'
                     )
@@ -591,7 +595,9 @@ class VideoService:
                         video_stream,
                         mixed_audio,
                         output,
-                        vcodec='libx264',  # Re-encode video if padded
+                        vcodec="libx264",  # Re-encode video if padded
+                        crf=18,
+                        video_bitrate="4000k",
                         acodec='aac',
                         audio_bitrate='192k'
                     )
@@ -680,7 +686,8 @@ class VideoService:
                         vcodec='libx264',
                         pix_fmt='yuv420p',
                         preset='medium',
-                        crf=23)
+                        crf=18,
+                        video_bitrate='4000k')
                 .overwrite_output()
                 .run(capture_stdout=True, capture_stderr=True)
             )

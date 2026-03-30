@@ -123,8 +123,13 @@ class LiteLLMVideoService:
             payload = {
                 "model": model_name,
                 "prompt": prompt,
-                "seconds": str(int(duration))
+                "seconds": str(int(duration)),
+                "aspectRatio": "9:16",
             }
+            # Add width/height if explicitly provided
+            if width and height:
+                payload["width"] = width
+                payload["height"] = height
             
             logger.debug(f"POST {generate_url}")
             response = await client.post(generate_url, json=payload, headers=headers)

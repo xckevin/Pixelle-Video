@@ -25,7 +25,7 @@ async def generate_video(
     output: str = "output.mp4",
     n_scenes: int = 5,
     workflow: str = "gemini",
-    template: str = "1080x1920/image_default.html",
+    template: str = None,
     title: str = None,
     mode: str = "generate",
     prompt_prefix: str = "",
@@ -139,7 +139,7 @@ async def batch_generate(
     output_dir: str = "batch_output",
     n_scenes: int = 5,
     workflow: str = "gemini",
-    template: str = "1080x1920/image_default.html",
+    template: str = None,
     style: str = "douyin-knowledge",
     image_style: str = None,
     voice: str = None,
@@ -273,7 +273,7 @@ def main():
     )
     gen_parser.add_argument(
         "-t", "--template",
-        default="1080x1920/image_default.html",
+        default=None,
         help="Video template (default: 1080x1920/image_default.html)"
     )
     gen_parser.add_argument(
@@ -359,7 +359,7 @@ def main():
                               help="Number of scenes per video (default: 5)")
     batch_parser.add_argument("-w", "--workflow", default="gemini",
                               help="Image workflow (default: gemini)")
-    batch_parser.add_argument("-t", "--template", default="1080x1920/image_default.html",
+    batch_parser.add_argument("-t", "--template", default=None,
                               help="Video template")
     batch_parser.add_argument("--style", choices=list(STYLE_DESCRIPTIONS.keys()),
                               default="douyin-knowledge", help="Platform narration style")

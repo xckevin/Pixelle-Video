@@ -155,8 +155,18 @@ class StandardPipeline(LinearVideoPipeline):
     async def plan_visuals(self, ctx: PipelineContext):
         """Step 4: Generate image prompts or visual descriptions."""
         # Detect template type to determine if media generation is needed
-        frame_template = ctx.params.get("frame_template") or "1080x1920/default.html"
+        media_workflow = ctx.params.get("media_workflow") or ""
+        # Auto-select template based on workflow if not explicitly provided
+        if ctx.params.get("frame_template"):
+            frame_template = ctx.params.get("frame_template")
+        elif media_workflow == "litellm_video":
+            frame_template = "1080x1920/video_default.html"
+        else:
+            frame_template = "1080x1920/image_default.html"
         
+        # Store resolved template back to params so initialize_storyboard picks it up
+        ctx.params["_resolved_frame_template"] = frame_template
+
         template_name = Path(frame_template).name
         template_type = get_template_type(template_name)
         template_requires_media = (template_type in ["image", "video"])
@@ -269,7 +279,7 @@ class StandardPipeline(LinearVideoPipeline):
             media_width=ctx.params.get("media_width"),
             media_height=ctx.params.get("media_height"),
             media_workflow=ctx.params.get("media_workflow"),
-            frame_template=ctx.params.get("frame_template") or "1080x1920/default.html",
+            frame_template=ctx.params.get("frame_template") or ctx.params.get("_resolved_frame_template") or "1080x1920/image_default.html",
             template_params=ctx.params.get("template_params")
         )
         
