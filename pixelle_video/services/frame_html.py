@@ -205,7 +205,7 @@ class HTMLFrameGenerator:
         
         # Pattern: {{param_name:type=default}} or {{param_name=default}} or {{param_name:type}} or {{param_name}}
         # Param name: must start with letter or underscore, can contain letters, digits, underscores
-        PARAM_PATTERN = r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]+))?(?:=([^}]+))?\}\}'
+        PARAM_PATTERN = r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]+))?(?:=([^}]*))?\}\}'
         
         params = {}
         
@@ -302,7 +302,7 @@ class HTMLFrameGenerator:
         Returns:
             HTML with placeholders replaced
         """
-        PARAM_PATTERN = r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]+))?(?:=([^}]+))?\}\}'
+        PARAM_PATTERN = r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-z]+))?(?:=([^}]*))?\}\}'
         
         def replacer(match):
             param_name = match.group(1)
