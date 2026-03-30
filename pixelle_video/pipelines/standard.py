@@ -108,8 +108,8 @@ class StandardPipeline(LinearVideoPipeline):
         mode = ctx.params.get("mode", "generate")
         text = ctx.input_text
         n_scenes = ctx.params.get("n_scenes", 5)
-        min_words = ctx.params.get("min_narration_words", 5)
-        max_words = ctx.params.get("max_narration_words", 20)
+        min_words = ctx.params.get("min_narration_words", 40)
+        max_words = ctx.params.get("max_narration_words", 70)
         
         if mode == "generate":
             self._report_progress(ctx.progress_callback, "generating_narrations", 0.05)
@@ -256,8 +256,8 @@ class StandardPipeline(LinearVideoPipeline):
         ctx.config = StoryboardConfig(
             task_id=ctx.task_id,
             n_storyboard=len(ctx.narrations), # Use actual length
-            min_narration_words=ctx.params.get("min_narration_words", 5),
-            max_narration_words=ctx.params.get("max_narration_words", 20),
+            min_narration_words=ctx.params.get("min_narration_words", 40),
+            max_narration_words=ctx.params.get("max_narration_words", 70),
             min_image_prompt_words=ctx.params.get("min_image_prompt_words", 30),
             max_image_prompt_words=ctx.params.get("max_image_prompt_words", 60),
             video_fps=ctx.params.get("video_fps", 30),

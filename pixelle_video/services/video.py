@@ -236,6 +236,10 @@ class VideoService:
                 )
                 prev_label = f"[v{i}]"
 
+            # Build audio concat filter for all segments
+            audio_inputs = "".join(f"[{i}:a]" for i in range(len(videos)))
+            audio_filter = f"{audio_inputs}concat=n={len(videos)}:v=0:a=1[aout]"
+            filter_parts.append(audio_filter)
             filter_complex = ";".join(filter_parts)
 
             cmd = ["ffmpeg", "-y"]
@@ -244,8 +248,7 @@ class VideoService:
             cmd += [
                 "-filter_complex", filter_complex,
                 "-map", "[vout]",
-                "-map", "0:a",
-                "-shortest",
+                "-map", "[aout]",
                 output,
             ]
 
